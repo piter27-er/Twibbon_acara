@@ -1,533 +1,165 @@
-```html
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Twibbon Generator Modern</title>
-    <!-- Menggunakan Tailwind CSS dari CDN -->
+    <title>Twibbon Acara</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f8fafc; /* Slate 50 */
-        }
-        
-        /* Background kotak-kotak (checkerboard) untuk menunjukkan transparansi di area canvas */
-        .canvas-container {
-            background-image: 
-                linear-gradient(45deg, #e2e8f0 25%, transparent 25%), 
-                linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), 
-                linear-gradient(45deg, transparent 75%, #e2e8f0 75%), 
-                linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
-            background-size: 20px 20px;
-            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-            touch-action: none; /* Penting: Mencegah layar scroll saat geser foto di HP */
-        }
-        
-        /* Tampilan kursor saat geser */
-        .cursor-grab { cursor: grab; }
-        .cursor-grabbing { cursor: grabbing !important; }
-        
-        /* Sembunyikan input file bawaan */
-        input[type="file"] {
-            display: none;
-        }
-
-        /* Modal animasi transisi */
-        .modal-enter {
-            opacity: 0;
-            transform: scale(0.95);
-        }
-        .modal-enter-active {
-            opacity: 1;
-            transform: scale(1);
-            transition: opacity 300ms, transform 300ms;
-        }
+        canvas { touch-action: none; } /* Mencegah layar bergeser saat menggeser foto di HP */
     </style>
 </head>
-<body class="min-h-screen text-slate-800 py-8 px-4 sm:px-8">
+<body class="bg-gray-100 min-h-screen flex flex-col items-center py-10 px-4">
 
-    <div class="max-w-6xl mx-auto">
-        <!-- Header -->
-        <div class="text-center mb-8">
-            <h1 class="text-4xl font-extrabold text-blue-700 mb-3 tracking-tight">Twibbon Maker</h1>
-            <p class="text-slate-500 max-w-xl mx-auto">Pasang fotomu ke dalam bingkai secara otomatis. Unggah bingkai, masukkan foto, sesuaikan posisi, lalu bagikan!</p>
+    <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-md text-center">
+        <h1 class="text-2xl font-bold mb-2 text-gray-800">Pasang Twibbon</h1>
+        <p class="text-gray-500 mb-6 text-sm">Unggah foto Anda, sesuaikan posisi, lalu unduh!</p>
+
+        <!-- Input Foto User Saja -->
+        <div class="mb-6">
+            <label class="block w-full cursor-pointer bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 py-3 rounded-lg font-semibold transition">
+                <span>📸 Pilih Foto Anda</span>
+                <input type="file" id="upload-photo" accept="image/*" class="hidden">
+            </label>
         </div>
 
-        <!-- Main Layout: 2 Kolom -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
-            <!-- Kiri: Panel Kontrol -->
-            <div class="lg:col-span-4 bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col gap-6">
-                
-                <!-- Kotak Notifikasi / Error (Tersembunyi by default) -->
-                <div id="alert-box" class="hidden p-4 rounded-xl text-sm text-white font-medium bg-red-500 shadow-md transition-opacity duration-300 flex items-center gap-2">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <span id="alert-text">Pesan alert disini</span>
-                </div>
-
-                <!-- Langkah 1: Upload Bingkai -->
-                <div>
-                    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-                        <span class="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span> 
-                        Unggah Bingkai (PNG)
-                    </h3>
-                    <label for="frame-upload" class="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-blue-300 rounded-xl cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-all group">
-                        <svg class="w-8 h-8 text-blue-400 mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                        <span class="text-sm text-blue-700 font-medium text-center px-2 truncate w-full" id="frame-label">Pilih File Bingkai Transparan</span>
-                    </label>
-                    <input id="frame-upload" type="file" accept="image/png" />
-                </div>
-
-                <!-- Langkah 2: Upload Foto -->
-                <div>
-                    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-                        <span class="bg-emerald-100 text-emerald-700 w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span> 
-                        Unggah Foto Anda
-                    </h3>
-                    <label for="photo-upload" class="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-emerald-300 rounded-xl cursor-pointer hover:bg-emerald-50 hover:border-emerald-400 transition-all group">
-                        <svg class="w-8 h-8 text-emerald-400 mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        <span class="text-sm text-emerald-700 font-medium text-center px-2 truncate w-full" id="photo-label">Pilih Foto Terbaikmu</span>
-                    </label>
-                    <input id="photo-upload" type="file" accept="image/*" />
-                </div>
-
-                <!-- Langkah 3: Pengaturan -->
-                <div class="bg-slate-50 p-5 rounded-xl border border-slate-100">
-                    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <span class="bg-amber-100 text-amber-700 w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span> 
-                        Sesuaikan Foto
-                    </h3>
-                    
-                    <label class="text-xs font-semibold text-slate-500 mb-2 block">Perbesar / Perkecil (Zoom)</label>
-                    <div class="flex items-center gap-3">
-                        <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"></path></svg>
-                        <input type="range" id="zoom-slider" min="0.1" max="3" step="0.01" value="1" class="w-full accent-blue-600 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
-                        <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
-                    </div>
-                    
-                    <div class="mt-4 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
-                        <p class="text-xs text-blue-800 flex items-start gap-2">
-                            <svg class="w-4 h-4 flex-shrink-0 mt-0.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            <span><strong>Tips:</strong> Klik/Sentuh dan geser (drag) foto pada area preview di sebelah kanan untuk mengatur posisinya.</span>
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Tombol Aksi -->
-                <div class="grid grid-cols-2 gap-3 mt-2">
-                    <button id="preview-btn" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                        Lihat Hasil
-                    </button>
-                    
-                    <button id="download-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl shadow-md shadow-blue-200 transition-all flex items-center justify-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        Unduh
-                    </button>
-                </div>
+        <!-- Area Hasil Twibbon -->
+        <div class="relative bg-gray-200 rounded-lg overflow-hidden border border-gray-300 mx-auto shadow-inner" style="width: 300px; height: 300px;">
+            <canvas id="canvas" width="1080" height="1080" class="w-full h-full cursor-move"></canvas>
+            <div id="loading-text" class="absolute inset-0 flex items-center justify-center text-gray-400 font-medium px-4 text-sm">
+                Menunggu Anda memilih foto...
             </div>
-
-            <!-- Kanan: Area Preview / Canvas -->
-            <div class="lg:col-span-8 flex flex-col items-center bg-white rounded-2xl p-4 sm:p-8 shadow-lg border border-slate-100 min-h-[500px]">
-                
-                <!-- Pembungkus Canvas dengan ukuran rasio -->
-                <div class="relative w-full max-w-2xl flex justify-center items-center canvas-container rounded-xl overflow-hidden shadow-inner border border-slate-200" style="aspect-ratio: 1/1;">
-                    
-                    <!-- Placeholder / Instruksi Awal -->
-                    <div id="canvas-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 z-0 p-6 text-center pointer-events-none">
-                        <svg class="w-16 h-16 mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        <h2 class="text-lg font-semibold text-slate-500 mb-1">Area Kerja</h2>
-                        <p class="text-sm">Unggah bingkai dan fotomu di panel sebelah kiri untuk mulai membuat Twibbon.</p>
-                    </div>
-
-                    <!-- Elemen Canvas (Di sinilah proses render terjadi) -->
-                    <!-- Resolusi internal dibuat besar (1080x1080 standar HD) tapi secara CSS disesuaikan w-full h-full -->
-                    <canvas id="canvas" class="w-full h-full cursor-grab relative z-10 object-contain hidden" width="1080" height="1080"></canvas>
-                </div>
-                
-                <p class="text-slate-400 text-xs mt-4 text-center">Data diproses sepenuhnya di browser Anda. Tidak ada gambar yang diunggah ke server.</p>
-            </div>
-
         </div>
+
+        <!-- Kontrol Zoom Foto -->
+        <div class="mt-6 mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Geser untuk Atur Ukuran Foto</label>
+            <input type="range" id="zoom-slider" min="0.1" max="3" step="0.01" value="1" class="w-full cursor-pointer">
+        </div>
+
+        <!-- Tombol Download -->
+        <button id="download-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg transition shadow-md hidden">
+            ⬇️ Unduh Hasil Twibbon
+        </button>
     </div>
 
-    <!-- MODAL LIHAT HASIL (PREVIEW) -->
-    <div id="preview-modal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity">
-        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all">
-            <!-- Header Modal -->
-            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                <h3 class="text-lg font-bold text-slate-800">Pratinjau Twibbon</h3>
-                <button id="close-modal-x" class="text-slate-400 hover:text-slate-600 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            
-            <!-- Konten Modal -->
-            <div class="p-6 bg-slate-50 flex justify-center">
-                <img id="preview-image" src="" alt="Hasil Twibbon" class="w-full max-w-sm h-auto rounded-lg shadow border border-slate-200 object-contain">
-            </div>
-            
-            <!-- Footer Modal -->
-            <div class="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-3">
-                <button id="close-modal-btn" class="px-5 py-2.5 rounded-xl font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
-                    Kembali Edit
-                </button>
-                <button id="download-from-modal-btn" class="px-5 py-2.5 rounded-xl font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-colors flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    Unduh Sekarang
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- JavaScript Logic -->
     <script>
-        // === DOM Elements ===
-        const frameInput = document.getElementById('frame-upload');
-        const photoInput = document.getElementById('photo-upload');
-        const zoomSlider = document.getElementById('zoom-slider');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        
-        // Buttons
-        const previewBtn = document.getElementById('preview-btn');
+        const uploadPhoto = document.getElementById('upload-photo');
+        const zoomSlider = document.getElementById('zoom-slider');
         const downloadBtn = document.getElementById('download-btn');
-        
-        // Labels & UI
-        const frameLabel = document.getElementById('frame-label');
-        const photoLabel = document.getElementById('photo-label');
-        const canvasPlaceholder = document.getElementById('canvas-placeholder');
-        const alertBox = document.getElementById('alert-box');
-        const alertText = document.getElementById('alert-text');
-        
-        // Modal Elements
-        const previewModal = document.getElementById('preview-modal');
-        const previewImage = document.getElementById('preview-image');
-        const closeModalX = document.getElementById('close-modal-x');
-        const closeModalBtn = document.getElementById('close-modal-btn');
-        const downloadFromModalBtn = document.getElementById('download-from-modal-btn');
+        const loadingText = document.getElementById('loading-text');
 
-        // === State Variables ===
-        let frameImg = null;
-        let photoImg = null;
+        // --- NAMA FILE BINGKAI ANDA ---
+        // Sistem akan otomatis mencari gambar bernama "twibbon.png" di repositori Anda
+        const frameUrl = 'twibbon.png'; 
         
-        // Transformasi Foto
-        let photoX = 0;
-        let photoY = 0;
-        let photoScale = 1;
-
-        // Variabel Dragging (Geser)
+        let userImg = new Image();
+        let frameImg = new Image();
+        
+        let posX = 0, posY = 0;
+        let scale = 1;
         let isDragging = false;
         let startX, startY;
-        let defaultCanvasWidth = 1080;
-        let defaultCanvasHeight = 1080;
 
-        // === Utility Functions ===
-        
-        // Tampilkan Notifikasi Error
-        function showAlert(message) {
-            alertText.textContent = message;
-            alertBox.classList.remove('hidden');
-            setTimeout(() => {
-                alertBox.classList.add('hidden');
-            }, 4000);
-        }
+        // Proses memuat bingkai otomatis
+        frameImg.src = frameUrl;
+        frameImg.onload = draw;
+        frameImg.onerror = () => {
+            loadingText.innerHTML = "<span class='text-red-500'>Error: File bingkai 'twibbon.png' belum diunggah ke GitHub!</span>";
+        };
 
-        // Tampilkan/Sembunyikan Elemen Canvas
-        function updateCanvasVisibility() {
-            if (frameImg || photoImg) {
-                canvasPlaceholder.style.display = 'none';
-                canvas.classList.remove('hidden');
-            } else {
-                canvasPlaceholder.style.display = 'flex';
-                canvas.classList.add('hidden');
-            }
-        }
+        // Proses saat user memilih foto
+        uploadPhoto.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-        // Fungsi Utama untuk Menggambar Ulang Canvas
-        function drawCanvas() {
-            updateCanvasVisibility();
-            
-            if(!frameImg && !photoImg) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                userImg.src = event.target.result;
+                userImg.onload = () => {
+                    // Atur ukuran dasar foto agar pas di tengah
+                    scale = Math.max(1080 / userImg.width, 1080 / userImg.height);
+                    zoomSlider.value = scale;
+                    posX = (1080 - userImg.width * scale) / 2;
+                    posY = (1080 - userImg.height * scale) / 2;
+                    
+                    loadingText.style.display = 'none';
+                    downloadBtn.classList.remove('hidden');
+                    draw();
+                }
+            };
+            reader.readAsDataURL(file);
+        });
 
-            // Bersihkan kanvas
+        // Menggabungkan foto user dan bingkai
+        function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Jika hanya ada foto tapi tidak ada frame, kita beri background putih
-            // Jika ada frame, background tetap transparan agar pinggirannya bolong
-            if(photoImg && !frameImg) {
-                ctx.fillStyle = "#ffffff";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 1. Gambar foto user (di belakang)
+            if (userImg.src) {
+                ctx.drawImage(userImg, posX, posY, userImg.width * scale, userImg.height * scale);
             }
-
-            // LAYER BAWAH: Gambar Foto Pribadi
-            if (photoImg) {
-                const scaledWidth = photoImg.width * photoScale;
-                const scaledHeight = photoImg.height * photoScale;
-                
-                // Gunakan mode penghalusan gambar agar foto tidak pecah
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                
-                ctx.drawImage(photoImg, photoX, photoY, scaledWidth, scaledHeight);
-            }
-
-            // LAYER ATAS: Gambar Bingkai (Twibbon)
-            if (frameImg) {
+            
+            // 2. Gambar bingkai twibbon (di depan)
+            if (frameImg.complete && frameImg.naturalWidth !== 0) {
                 ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
             }
         }
 
-        // === Event Listeners for File Uploads ===
-
-        // Upload Bingkai (Frame)
-        frameInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            // Validasi file PNG (karena bingkai harus transparan)
-            if(file.type !== "image/png") {
-                showAlert("Peringatan: Harap unggah file berformat .PNG untuk bingkai agar memiliki area transparan!");
-            }
-
-            // Truncate nama file panjang
-            let fileName = file.name;
-            if(fileName.length > 25) fileName = fileName.substring(0, 25) + '...';
-            frameLabel.textContent = fileName;
-            
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    frameImg = img;
-                    
-                    // Set ukuran resolusi internal canvas mengikuti ukuran file bingkai asli
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    
-                    // Posisikan ulang foto ke tengah jika sudah diupload
-                    if(photoImg) resetPhotoPosition();
-                    
-                    drawCanvas();
-                }
-                img.src = event.target.result;
-            }
-            reader.readAsDataURL(file);
-        });
-
-        // Upload Foto Pribadi
-        photoInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            let fileName = file.name;
-            if(fileName.length > 25) fileName = fileName.substring(0, 25) + '...';
-            photoLabel.textContent = fileName;
-            
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    photoImg = img;
-                    resetPhotoPosition();
-                    drawCanvas();
-                }
-                img.src = event.target.result;
-            }
-            reader.readAsDataURL(file);
-        });
-
-        // === Logika Posisi dan Skala ===
-
-        // Hitung skala agar foto menutupi/pas dengan kanvas di awal
-        function resetPhotoPosition() {
-            if(!photoImg) return;
-            
-            // Logika "Cover" - pastikan sisi terkecil foto memenuhi kanvas
-            const scaleX = canvas.width / photoImg.width;
-            const scaleY = canvas.height / photoImg.height;
-            
-            // Ambil skala yang lebih besar agar tidak ada area kosong
-            photoScale = Math.max(scaleX, scaleY);
-            
-            // Set input slider
-            zoomSlider.value = photoScale;
-            zoomSlider.min = photoScale * 0.2; // Bisa diperkecil hingga 20%
-            zoomSlider.max = photoScale * 4;   // Bisa diperbesar hingga 400%
-
-            // Pusatkan foto di kanvas
-            photoX = (canvas.width - (photoImg.width * photoScale)) / 2;
-            photoY = (canvas.height - (photoImg.height * photoScale)) / 2;
+        // --- SISTEM GESER FOTO (TOUCH & MOUSE) ---
+        function getPos(e) {
+            if (e.touches) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            return { x: e.clientX, y: e.clientY };
         }
 
-        // Kontrol Slider Zoom
-        zoomSlider.addEventListener('input', (e) => {
-            if (!photoImg) return;
-            const newScale = parseFloat(e.target.value);
-            
-            // Kalkulasi agar zoom berpusat pada tengah kanvas, bukan pojok kiri atas
-            const centerCanvasX = canvas.width / 2;
-            const centerCanvasY = canvas.height / 2;
-            
-            // Cari posisi tengah foto saat ini relatif terhadap kanvas
-            const photoCenterX = (centerCanvasX - photoX) / photoScale;
-            const photoCenterY = (centerCanvasY - photoY) / photoScale;
-            
-            // Update skala
-            photoScale = newScale;
-            
-            // Sesuaikan X dan Y berdasarkan skala baru
-            photoX = centerCanvasX - (photoCenterX * photoScale);
-            photoY = centerCanvasY - (photoCenterY * photoScale);
-            
-            drawCanvas();
-        });
-
-        // === Kontrol Geser (Mouse & Sentuhan Layar) ===
-        
-        // Konversi koordinat layar (layar HP/Monitor) ke koordinat internal canvas (contoh: 1080x1080)
-        function getCoordinates(e) {
-            const rect = canvas.getBoundingClientRect();
-            // Rasio ukuran asli / ukuran yang tampil di layar
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            
-            let clientX, clientY;
-            if (e.touches && e.touches.length > 0) {
-                // Sentuhan (HP)
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else {
-                // Mouse (PC)
-                clientX = e.clientX;
-                clientY = e.clientY;
-            }
-
-            return {
-                x: (clientX - rect.left) * scaleX,
-                y: (clientY - rect.top) * scaleY
-            };
-        }
-
-        function handlePointerDown(e) {
-            if (!photoImg) return; // Harus ada foto untuk digeser
-            
+        function startDrag(e) {
+            if (!userImg.src) return;
             isDragging = true;
-            canvas.classList.add('cursor-grabbing');
-            
-            const pos = getCoordinates(e);
-            // Simpan jarak antara titik sentuh dengan pojok kiri atas foto
-            startX = pos.x - photoX;
-            startY = pos.y - photoY;
+            const pos = getPos(e);
+            startX = pos.x;
+            startY = pos.y;
         }
 
-        function handlePointerMove(e) {
-            if (!isDragging || !photoImg) return;
+        function doDrag(e) {
+            if (!isDragging) return;
+            e.preventDefault(); // Cegah layar hp terscroll saat menggeser foto
+            const pos = getPos(e);
+            const ratio = 1080 / 300; // Skala ukuran asli vs ukuran tampilan di HP
             
-            // Hindari default behavior scroll hp saat menggeser gambar di canvas
-            if(e.cancelable) {
-                e.preventDefault(); 
-            }
-            
-            const pos = getCoordinates(e);
-            // Hitung posisi baru
-            photoX = pos.x - startX;
-            photoY = pos.y - startY;
-            
-            // Render ulang secara real-time
-            requestAnimationFrame(drawCanvas);
+            posX += (pos.x - startX) * ratio;
+            posY += (pos.y - startY) * ratio;
+            startX = pos.x;
+            startY = pos.y;
+            draw();
         }
 
-        function handlePointerUp() {
+        function endDrag() {
             isDragging = false;
-            canvas.classList.remove('cursor-grabbing');
         }
 
-        // Event Listeners untuk Desktop
-        canvas.addEventListener('mousedown', handlePointerDown);
-        window.addEventListener('mousemove', handlePointerMove); // Window agar lancar saat mouse keluar canvas
-        window.addEventListener('mouseup', handlePointerUp);
+        canvas.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', doDrag);
+        window.addEventListener('mouseup', endDrag);
+        
+        canvas.addEventListener('touchstart', startDrag, {passive: false});
+        window.addEventListener('touchmove', doDrag, {passive: false});
+        window.addEventListener('touchend', endDrag);
 
-        // Event Listeners untuk Mobile (Touch)
-        canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
-        window.addEventListener('touchmove', handlePointerMove, { passive: false });
-        window.addEventListener('touchend', handlePointerUp);
+        // Sistem Zoom
+        zoomSlider.addEventListener('input', (e) => {
+            scale = parseFloat(e.target.value);
+            draw();
+        });
 
-        // === Logika Preview Modal & Download ===
-
-        // Fungsi Membuka Modal Lihat Hasil
-        function openPreviewModal() {
-            if (!frameImg && !photoImg) {
-                showAlert("Harap unggah bingkai atau foto terlebih dahulu!");
-                return;
-            }
-            
-            // Render canvas saat ini menjadi base64 Data URL Image
-            const dataUrl = canvas.toDataURL("image/png");
-            previewImage.src = dataUrl;
-            
-            // Tampilkan Modal
-            previewModal.classList.remove('hidden');
-            // Sedikit delay untuk efek transisi masuk
-            setTimeout(() => {
-                previewModal.children[0].classList.add('modal-enter-active');
-            }, 10);
-        }
-
-        // Fungsi Menutup Modal
-        function closePreviewModal() {
-            previewModal.children[0].classList.remove('modal-enter-active');
-            setTimeout(() => {
-                previewModal.classList.add('hidden');
-            }, 300); // Sesuaikan dengan durasi transisi
-        }
-
-        // Fungsi Mengeksekusi Download
-        function performDownload() {
-            if (!frameImg && !photoImg) {
-                showAlert("Tidak ada yang bisa diunduh. Unggah file dulu!");
-                return;
-            }
-            
-            // Ambil data resolusi tinggi dari canvas
-            const dataUrl = canvas.toDataURL("image/png");
-            
-            // Buat tag <a> secara programmatis
+        // Sistem Download
+        downloadBtn.addEventListener('click', () => {
             const link = document.createElement('a');
-            link.download = 'Twibbon-Keren-Saya.png'; // Nama file default
-            link.href = dataUrl;
-            
-            // Klik link secara otomatis
-            document.body.appendChild(link);
+            link.download = 'Twibbon-Acara.png';
+            link.href = canvas.toDataURL('image/png');
             link.click();
-            document.body.removeChild(link);
-        }
-
-        // Tombol Event
-        previewBtn.addEventListener('click', openPreviewModal);
-        closeModalX.addEventListener('click', closePreviewModal);
-        closeModalBtn.addEventListener('click', closePreviewModal);
-        
-        // Download dari halaman utama
-        downloadBtn.addEventListener('click', performDownload);
-        
-        // Download dari dalam modal preview
-        downloadFromModalBtn.addEventListener('click', () => {
-            performDownload();
-            closePreviewModal();
         });
-        
-        // Tutup modal jika klik di luar area box putih
-        previewModal.addEventListener('click', (e) => {
-            if(e.target === previewModal) {
-                closePreviewModal();
-            }
-        });
-
     </script>
 </body>
 </html>
-```
